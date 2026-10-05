@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>NUACX — Console de test (Cockpit embarqué)</title>
+<style>
+    :root {
+        --navy: #16295a;
+        --navy-light: #1f3a73;
+        --bg: #f7f8fa;
+        --surface: #ffffff;
+        --line: #e3e6ec;
+        --ink: #1c2337;
+        --muted: #6f7889;
+        --green: #2fb36b;
+        --amber: #d9822b;
+        --radius: 10px;
+        --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        --sans: 'Inter', 'Segoe UI', Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.55; }
+
+    .topbar {
+        background: var(--navy); color: #fff; padding: 14px 24px;
+        display: flex; align-items: center; justify-content: space-between;
+        position: sticky; top: 0; z-index: 20; box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+    .topbar-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: 0.2px; }
+    .topbar-brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); display: inline-block; }
+    .topbar-sub { font-size: 12px; color: rgba(255,255,255,0.65); text-transform: uppercase; letter-spacing: 0.6px; }
+
+    .layout { display: flex; align-items: flex-start; }
+    .content { width: calc(100% - 460px); padding: 28px 32px 60px; }
+    .page-header { margin-bottom: 28px; }
+    .page-header h1 { font-size: 22px; margin: 0 0 6px; color: var(--navy); font-weight: 700; }
+    .page-header p { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 680px; }
+
+    .cockpit-panel { width: 440px; flex: 0 0 440px; position: sticky; top: 66px; padding: 24px 24px 0 0; }
+    .cockpit-panel .panel-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 8px; display: block; font-weight: 600; }
+    .cockpit-box {
+        width: 420px; height: 680px; margin: 0 auto; border-radius: var(--radius); overflow: hidden;
+        box-shadow: 0 8px 24px rgba(22,41,90,0.16), 0 1px 0 rgba(0,0,0,0.04); border: 1px solid var(--line); background: #fff;
+    }
+    .cockpit-box iframe { width: 100%; height: 100%; border: none; display: block; }
+    .cockpit-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #9aa1b0; font-size: 12.5px; text-align: center; padding: 24px; }
+
+    section.block { margin-bottom: 36px; }
+    section.block > h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--amber); font-weight: 700; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 18px 16px; box-shadow: 0 1px 2px rgba(20,20,30,0.04); display: flex; flex-direction: column; gap: 10px; }
+    .card h3 { font-size: 14px; margin: 0; color: var(--navy); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .card h3 .idx { width: 20px; height: 20px; border-radius: 5px; background: rgba(22,41,90,0.08); color: var(--navy-light); font-size: 11px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; flex: 0 0 auto; }
+    .card p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+    .card p code { background: #f3f4f7; border-radius: 4px; padding: 1px 5px; font-family: var(--mono); font-size: 11px; }
+
+    .field-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .card input[type="text"] { font-family: var(--sans); font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+    .card input[type="text"]:focus { outline: none; border-color: var(--navy-light); box-shadow: 0 0 0 3px rgba(31,58,115,0.12); }
+    label.checkbox { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink); }
+    label.checkbox input { accent-color: var(--navy-light); }
+
+    .btn { appearance: none; border: none; border-radius: 7px; padding: 9px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; background: var(--navy-light); color: #fff; transition: background 0.15s ease, transform 0.08s ease; align-self: flex-start; }
+    .btn:hover { background: var(--navy); }
+    .btn:active { transform: scale(0.97); }
+
+    .badge { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 3px 8px; border-radius: 999px; background: #eceef2; color: var(--muted); }
+    .badge.is-ready { background: rgba(47,179,107,0.15); color: #1f7a4d; }
+    .badge.inline { text-transform: none; letter-spacing: 0; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: rgba(217,130,43,0.14); color: var(--amber); }
+
+    .event-output { width: 100%; font-family: var(--mono); font-size: 11.5px; color: var(--navy); background: #f3f6fa; border: 1px dashed rgba(31,58,115,0.3); border-radius: 6px; padding: 10px; min-height: 90px; resize: vertical; }
+
+    .note { font-size: 12px; color: var(--muted); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+
+    @media (max-width: 920px) {
+        .layout { flex-direction: column; }
+        .content { width: 100%; padding: 20px; }
+        .cockpit-panel { width: 100%; flex: none; position: relative; top: 0; padding: 20px 0 0; }
+        .cockpit-box { width: 100%; max-width: 420px; }
+    }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="topbar-brand"><span class="dot"></span> NUACX</div>
+    <div class="topbar-sub">Console de test (Cockpit mini)</div>
+</div>
+
+<div class="layout">
+    <div class="content">
+        <div class="page-header">
+            <h1>Intégration CRM du Cockpit (iframe)</h1>
+            <p>Teste le pont d'intégration minimal exposé par <code>/workspace</code> : clic-to-call, screen-pop,
+               journalisation d'interaction et affichage compact. Inspirée dans l'esprit de la console Genesys
+               Cloud Embeddable Framework, mais avec le vocabulaire et le périmètre propres à NUACX — voir
+               <code>docs-site/docs/technique/cockpit-embarque.md</code> pour le contrat complet.</p>
+        </div>
+
+        <section class="block">
+            <h2>Connexion</h2>
+            <div class="card-grid">
+                <div class="card" style="grid-column: 1 / -1;">
+                    <h3><span class="idx">1</span>Charger le Cockpit</h3>
+                    <p>Aucun jeton à fournir ici : l'iframe se charge sans authentification, détecte qu'elle est
+                       embarquée (<code>Sec-Fetch-Dest: iframe</code>) et affiche son propre écran « Se connecter »
+                       — un clic ouvre une popup top-level (<code>/workspace/launch</code>, réutilise la connexion
+                       NUACX habituelle, OTP compris) qui mint le jeton et le repasse au Cockpit embarqué tout seul.
+                       Voir <code>docs-site/docs/technique/cockpit-embarque.md</code> pour le détail du mécanisme.</p>
+                    <div class="field-row">
+                        <input type="text" id="baseUrl" value="http://localhost:8080" style="flex:1; min-width:180px;">
+                    </div>
+                    <div class="field-row">
+                        <label class="checkbox"><input type="checkbox" id="miniMode" checked> Mode compact (<code>?mode=mini</code>)</label>
+                        <button id="loadCockpit" class="btn">Charger</button>
+                        <span id="bridgeStatus" class="badge">Pont inactif</span>
+                    </div>
+                    <p class="note">Décochez « Mode compact » pour comparer, dans le même panneau 420px, le rendu
+                       sans <code>mode=mini</code> (sidebars dans l'état de leur dernier cookie) — démontre pourquoi
+                       ce paramètre compte pour un panneau CRM étroit. Popup bloquée par le navigateur ? Le bouton
+                       « Se connecter » du Cockpit affiche le message d'erreur correspondant, autorisez les pop-ups
+                       pour cette page puis recliquez « Charger » pour recommencer.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="block">
+            <h2>Actions</h2>
+            <div class="card-grid">
+                <div class="card">
+                    <h3><span class="idx">2</span>Clic-to-Call</h3>
+                    <p>Envoie <span class="badge inline">nuacx:clickToCall</span> à l'iframe — compose le numéro
+                       comme si l'agent l'avait tapé lui-même. Nécessite un agent déjà enregistré (SIP) dans le
+                       Cockpit chargé ci-contre.</p>
+                    <div class="field-row">
+                        <input type="text" id="clickToCallNumber" value="+33612345678" style="flex:1; min-width:160px;">
+                        <button id="clickToCall" class="btn">Appeler</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="block">
+            <h2>Événements reçus</h2>
+            <div class="card-grid">
+                <div class="card">
+                    <h3>nuacx:ready</h3>
+                    <p>Émis une fois au chargement du Cockpit — confirme que le pont est actif.</p>
+                    <textarea id="evtReady" class="event-output" rows="3" readonly></textarea>
+                </div>
+                <div class="card">
+                    <h3>nuacx:screenPop</h3>
+                    <p>Émis à la présentation d'un appel entrant — numéro, nom, correspondance annuaire si trouvée.</p>
+                    <textarea id="evtScreenPop" class="event-output" rows="7" readonly></textarea>
+                </div>
+                <div class="card">
+                    <h3>nuacx:interactionLogged</h3>
+                    <p>Émis à la soumission du code de conclusion — synthèse destinée à la journalisation CRM.</p>
+                    <textarea id="evtInteractionLogged" class="event-output" rows="7" readonly></textarea>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="cockpit-panel">
+        <span class="panel-label">Cockpit embarqué</span>
+        <div class="cockpit-box" id="cockpitBox">
+            <div class="cockpit-empty">Pas encore chargé — cliquez sur « Charger ».</div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var $ = function (id) { return document.getElementById(id); };
+
+    function setBridgeStatus(ready) {
+        var el = $('bridgeStatus');
+        el.textContent = ready ? 'Pont actif' : 'Pont inactif';
+        el.classList.toggle('is-ready', ready);
+    }
+
+    function renderPayload(el, data) {
+        el.value = JSON.stringify(data, null, 2) + '\n\n[reçu à ' + new Date().toLocaleTimeString() + ']';
+    }
+
+    // Écoute les messages du Cockpit embarqué — voir workspace.js::_postToHost. Les objets
+    // arrivent tels quels (structured clone), jamais en JSON.stringify : pas de JSON.parse ici,
+    // contrairement à la console Genesys qui sérialise ses messages en chaîne.
+    window.addEventListener('message', function (event) {
+        var msg = event.data;
+        if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') return;
+        if (msg.type === 'nuacx:ready') {
+            setBridgeStatus(true);
+            renderPayload($('evtReady'), msg.data || {});
+        } else if (msg.type === 'nuacx:screenPop') {
+            renderPayload($('evtScreenPop'), msg.data || {});
+        } else if (msg.type === 'nuacx:interactionLogged') {
+            renderPayload($('evtInteractionLogged'), msg.data || {});
+        }
+    });
+
+    $('loadCockpit').addEventListener('click', function () {
+        var base = $('baseUrl').value.trim().replace(/\/$/, '');
+        if (!base) { alert('URL de base requise.'); return; }
+        // Pas de jeton ici — voir le popup d'authentification intégré au Cockpit lui-même
+        // (workspace/launch_prompt.html côté serveur) : cette console se contente d'embarquer
+        // l'iframe nue, exactement comme le ferait un vrai CRM hôte.
+        var url = base + '/workspace' + ($('miniMode').checked ? '?mode=mini' : '');
+        var box = $('cockpitBox');
+        box.innerHTML = '';
+        var iframe = document.createElement('iframe');
+        iframe.id = 'cockpitFrame';
+        iframe.setAttribute('allow', 'microphone');
+        iframe.src = url;
+        box.appendChild(iframe);
+        setBridgeStatus(false); // repasse à "inactif" tant que nuacx:ready n'est pas revenu pour CE chargement
+    });
+
+    $('clickToCall').addEventListener('click', function () {
+        var iframe = $('cockpitFrame');
+        if (!iframe) { alert('Chargez d\'abord le Cockpit (étape 1).'); return; }
+        var number = $('clickToCallNumber').value.trim();
+        if (!number) return;
+        iframe.contentWindow.postMessage({ type: 'nuacx:clickToCall', data: { number: number } }, '*');
+    });
+
+    // Repli visuel discret pour les boutons cliqués — même esprit que la console Genesys.
+    document.querySelectorAll('.btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            btn.style.transform = 'scale(0.97)';
+            setTimeout(function () { btn.style.transform = ''; }, 150);
+        });
+    });
+});
+</script>
+
+</body>
+</html>
